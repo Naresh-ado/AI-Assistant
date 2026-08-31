@@ -1,0 +1,247 @@
+﻿================================================================================
+          AI ACADEMIC COPILOT — 30 PROJECT QUESTIONS & ANSWERS (VIVA/FAQ)
+================================================================================
+
+This document contains 30 in-depth technical, architectural, and conceptual
+questions and answers about the AI Academic Copilot project. Use this for project
+presentations, technical vivas, demonstrations, and interviews.
+
+================================================================================
+CATEGORY 1: PROJECT OVERVIEW & ARCHITECTURE (Q1 - Q5)
+================================================================================
+
+Q1: What is the AI Academic Copilot, and what problem does it solve?
+A1: AI Academic Copilot is an intelligent, full-stack academic management and
+    emotional support application for students. It addresses two major problems:
+    (1) Academic overwhelm and poor time management caused by unorganized syllabi
+    and looming deadlines, and (2) Study burnout and anxiety, by pairing students
+    with an interactive, voice-enabled 3D AI companion that tracks pacing and
+    celebrates progress.
+
+Q2: What is the high-level architecture of this application?
+A2: The application follows a modern decoupled 3-tier full-stack architecture:
+    • Client Tier: Single Page Application (SPA) built with React 18, Vite,
+      Tailwind CSS, and Three.js for 3D avatar rendering.
+    • API/Application Tier: Node.js and Express.js REST API server handling business
+      logic, authentication, and external AI orchestrations.
+    • Data & AI Tier: MongoDB (Mongoose ODM) for persistent storage and Mistral AI
+      (mistral-large-latest API) for syllabus parsing and conversational empathy.
+
+Q3: Why was Vite chosen over Create React App (CRA)?
+A3: Vite provides:
+    • Instant dev server startup leveraging native ES Modules (ESM).
+    • Lightning-fast Hot Module Replacement (HMR) during development.
+    • Optimized production builds powered by Rollup with built-in code splitting
+      and tree-shaking.
+    • CRA is officially deprecated by the React team, whereas Vite is the modern standard.
+
+Q4: What happens if an external service like MongoDB or Mistral AI is offline?
+A4: The application is built with graceful offline degradation:
+    • If MongoDB is down: An automatic In-Memory Store handles data in RAM during
+      the session so the user can continue testing uninterrupted.
+    • If Mistral AI API fails or is unconfigured: The system automatically cascades
+      through backup AI keys (OpenAI / Gemini) or falls back to an offline rule-based
+      heuristic parser and emotional dialogue engine.
+
+Q5: Is this project dependent on Base44 or third-party cloud platforms?
+A5: No. The project has been fully decoupled and is 100% independent. It runs
+    locally on standard Node.js, Express, React, and local MongoDB without any
+    external platform lock-in.
+
+================================================================================
+CATEGORY 2: FRONTEND, UI/UX & STATE (Q6 - Q9)
+================================================================================
+
+Q6: How is routing and route protection implemented on the frontend?
+A6: Frontend routing is handled by 'react-router-dom' (v6).
+    • Public Routes: '/login', '/register', '/forgot-password', '/reset-password'.
+    • Protected Routes: Wrapped inside a '<ProtectedRoute />' component that checks
+      the user's authentication token via 'AuthContext'.
+    • Calibration Guard: '<AppLayout />' checks if the user has completed their
+      study baseline calibration. If not, it automatically redirects to '/onboarding'.
+
+Q7: What UI component libraries and styling approaches are used?
+A7: • Tailwind CSS: For utility-first, responsive, dark-mode styling with custom
+      borders and glowing accents.
+    • Radix UI Primitives: Unstyled, accessible UI components (Dialog, Tabs,
+      Progress bar, Dropdowns) ensuring full keyboard navigation and screen reader support.
+    • Lucide React: Clean, vector iconography across all dashboard panels.
+
+Q8: How does the application prevent layout shifts and display loading states?
+A8: The app implements:
+    • Full-screen minimal spinners ('Loader2' from Lucide) while fetching auth state.
+    • Skeleton cards and conditional rendering for async data fetching.
+    • React Query ('@tanstack/react-query') for server-state caching and deduping.
+
+Q9: How does the Dashboard visualize student workload and study capacity?
+A9: The Dashboard uses custom SVG progress rings ('CapacityRing.jsx') and Recharts
+    components to display daily study hour limits, pending assignments, countdowns
+    to nearest deadlines, and active study plan progress.
+
+================================================================================
+CATEGORY 3: 3D GRAPHICS, VRM AVATARS & WEBGL (Q10 - Q13)
+================================================================================
+
+Q10: What is a VRM file and why is it used for the 3D companions?
+A10: VRM is a standardized, cross-platform 3D file format based on glTF 2.0 designed
+     specifically for humanoid 3D avatars. It contains:
+     • 3D polygon meshes and high-resolution textures.
+     • Standardized humanoid bone skeleton (Humanoid Rig).
+     • Facial blend shapes / morph targets (eye blinks, smiles, mouth visemes).
+     • Spring bone physics for hair and clothing movement.
+
+Q11: How does Three.js render the 3D avatar in the browser?
+A11: Inside 'CompanionScene.jsx':
+     1. A WebGL canvas is created with an ambient light and directional key light.
+     2. The '@pixiv/three-vrm' 'VRMLoaderPlugin' loads the .vrm file into the scene.
+     3. A 'PerspectiveCamera' is positioned at chest/face level of the avatar.
+     4. A continuous animation loop ('requestAnimationFrame') updates bones and
+        renders frames at 60 FPS.
+
+Q12: How are natural idle animations (breathing, blinking, head-tracking) created?
+A12: Controlled by 'IdleController.js':
+     • Breathing: Uses mathematical sine waves 'Math.sin(clock.getElapsedTime())'
+       to subtly rotate the spine and chest bones.
+     • Blinking: A timer randomly triggers the 'blink' blend shape weight from
+       0.0 to 1.0 every 3 to 6 seconds.
+     • Head Tracking: The neck and head bones calculate quaternions to gently track
+       the user's mouse pointer coordinates across the screen.
+
+Q13: How does voice and lip-sync work when the companion speaks?
+A13: • Speech Output: Uses the browser's native 'window.speechSynthesis' Web API
+       with customized pitch, speech rate, and male/female voice selection.
+     • Lip-Sync (Visemes): While audio is playing, an interval oscillates the avatar's
+       mouth morph targets ('aa', 'ih', 'ou', 'ee', 'oh') to simulate natural talking.
+
+================================================================================
+CATEGORY 4: BACKEND & REST API (Q14 - Q17)
+================================================================================
+
+Q14: How is the backend structured and what are the main API endpoints?
+A14: Built with Express.js modular routers:
+     • '/api/auth': User registration, login, JWT issuance, and session verification.
+     • '/api/entities/:entity': Generic CRUD endpoint supporting filter, create,
+       update, delete, bulk-create, and bulk-update for all Mongoose models.
+     • '/api/ai/extract-course': AI-powered syllabus parser.
+     • '/api/ai/invoke-llm': General LLM prompt and companion dialogue endpoint.
+     • '/api/health': System status, active AI provider, and MongoDB connection state.
+
+Q15: How does the generic entity handler in 'apiClient.js' work on the frontend?
+A15: 'apiClient.js' uses a JavaScript 'Proxy' object ('entitiesProxy'). When code calls
+     'apiClient.entities.AcademicTask.filter()', the Proxy intercepts the property
+     access dynamically and generates standard CRUD methods without boilerplate code.
+
+Q16: How does the backend communicate with the frontend during development?
+A16: Vite's dev server running on 'http://localhost:5173' proxies all requests
+     starting with '/api' to the Express backend running on 'http://localhost:5000'.
+     CORS middleware on Express also permits requests from the Vite dev server.
+
+Q17: What security headers and payload limits are enforced on the Express server?
+A17: • JSON body parser limit is set to '10mb' to accommodate syllabus PDF text payloads.
+     • CORS with 'credentials: true' ensures safe cross-origin resource sharing.
+     • 'authMiddleware' guards protected API routes against unauthenticated requests.
+
+================================================================================
+CATEGORY 5: AI ENGINE, PROMPTS & ANALYSIS (Q18 - Q22)
+================================================================================
+
+Q18: Which AI model is primarily used and why?
+A18: Mistral AI's 'mistral-large-latest' model. It was chosen because:
+     • Exceptional performance on academic reasoning and curriculum structuring.
+     • Reliable JSON Schema mode ('response_format: { type: "json_object" }').
+     • Low latency, high throughput, and cost efficiency.
+
+Q19: How does the AI extract a structured topic tree from a raw syllabus?
+A19: When raw syllabus text is sent to '/api/ai/extract-course':
+     1. A 'Curriculum Architect' system prompt instructs the model to ignore
+        administrative text (office hours, grading policy, attendance rules).
+     2. It segments topics into logical Modules/Units.
+     3. It rates topic exam importance ('high', 'medium', 'low') based on core
+        foundational concepts.
+     4. It estimates the study duration in minutes (typically 45–90 min) per topic.
+     5. It returns a clean JSON tree that is directly stored in MongoDB.
+
+Q20: How does the AI analyze emotions during student companion chats?
+A20: The companion prompt analyzes student messages using contextual sentiment analysis.
+     It identifies emotions like 'overwhelmed', 'anxious about exams', 'procrastinating',
+     or 'celebrating a completed goal'. The LLM returns a structured JSON payload with:
+     (1) An empathetic spoken reply, (2) An emotion tag, and (3) An avatar animation cue.
+
+Q21: What is the "Rescue" feature and how does it work?
+A21: When students fall behind or have an exam in 2–5 days, the Rescue module:
+     1. Filters only 'high' importance topics and pending high-weight tasks.
+     2. Discards low-yield material.
+     3. Compresses study schedules into intensive, high-yield active-recall blocks
+        to maximize exam retention in minimal time.
+
+Q22: How does the system adapt to the student's actual study speed?
+A22: During active study sessions ('StudySession.jsx'), the timer records actual
+     minutes taken vs. predicted duration. The ratio updates 'estimate_accuracy'
+     in 'StudentProfile' and dynamically scales future session lengths.
+
+================================================================================
+CATEGORY 6: DATABASE & MONGOOSE MODELS (Q23 - Q26)
+================================================================================
+
+Q23: What database is used and how is it connected?
+A23: MongoDB running locally at 'mongodb://127.0.0.1:27017/ai_academic_copilot'.
+     Node.js connects using Mongoose ODM with 'serverSelectionTimeoutMS: 5000'
+     to ensure fast startup and automatic reconnection.
+
+Q24: What are the primary collections in the database?
+A24: There are 8 collections:
+     1. 'users': Login credentials (email, hashed password, name).
+     2. 'studentprofiles': Study capacity, companion avatar, focus length, pace.
+     3. 'courses': Enrolled courses, subject code, target grade.
+     4. 'topics': Granular syllabus topics and importance ratings.
+     5. 'academictasks': Assignments, quizzes, homework, and deadlines.
+     6. 'studyplans': AI-generated study programs.
+     7. 'plansessions': Individual scheduled study blocks.
+     8. 'companionmessages': Conversation logs and emotional sentiment records.
+
+Q25: How do you inspect and manage the database using MongoDB Compass?
+A25: 1. Launch MongoDB Compass.
+     2. Paste connection string: 'mongodb://127.0.0.1:27017' and click 'Connect'.
+     3. Click the 'ai_academic_copilot' database.
+     4. Click on any collection (e.g. 'users', 'studentprofiles') to view, filter,
+        or edit JSON documents visually.
+
+Q26: Why are MongoDB collections empty right after a clean project setup?
+A26: MongoDB creates databases and collections "lazily" — they are only written
+     to disk when the first document is inserted (e.g., when the first user registers
+     or uploads a course).
+
+================================================================================
+CATEGORY 7: AUTHENTICATION & SECURITY (Q27 - Q30)
+================================================================================
+
+Q27: How are passwords stored and secured?
+A27: Passwords are never stored in plain text. Before saving to MongoDB, the backend
+     hashes them using 'bcryptjs' with 10 salt rounds. During login, 'bcrypt.compare()'
+     verifies the candidate password against the stored cryptographic hash.
+
+Q28: How does JWT authentication work in this application?
+A28: Upon successful registration or login:
+     1. Backend signs a JWT token containing '{ id, email }' using 'JWT_SECRET'
+        with a 30-day expiration.
+     2. Frontend saves the token in browser 'localStorage'.
+     3. Every API request includes 'Authorization: Bearer <token>' in the headers.
+     4. Backend 'authMiddleware' validates the token and attaches the user object.
+
+Q29: How does the logout process work?
+A29: When the user clicks "Sign out":
+     1. An API call notifies '/api/auth/logout'.
+     2. The JWT token is cleared from browser 'localStorage'.
+     3. The React application state resets, and the user is redirected to '/login'.
+
+Q30: What environment variables are required to run the project securely?
+A30: Stored inside '.env.local' (which is gitignored):
+     • 'PORT': Backend port (default 5000).
+     • 'MONGODB_URI': MongoDB connection URI.
+     • 'JWT_SECRET': Secret key for signing authentication tokens.
+     • 'MISTRAL_API_KEY': API key for Mistral AI LLM service.
+     • 'MISTRAL_MODEL': 'mistral-large-latest'.
+
+================================================================================
+                          END OF 30 QUESTIONS & ANSWERS
+================================================================================

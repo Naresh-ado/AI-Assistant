@@ -1,0 +1,253 @@
+﻿================================================================================
+          AI ACADEMIC COPILOT — SYSTEM ARCHITECTURE & EXPLANATION GUIDE
+================================================================================
+
+This document provides a comprehensive technical and functional explanation of
+the entire AI Academic Copilot project: the complete tech stack, AI models and
+prompts, how data is analyzed, how 3D companion models work, database models,
+and answers to frequently asked technical questions.
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. Project Overview & Core Mission
+2. Complete Tech Stack & Library Breakdown
+3. The AI Engine — Model, API, & Intelligent Fallbacks
+4. How AI Analyzes Academic Data
+   4.1 Syllabus & Course Extraction
+   4.2 Study Plan & Schedule Generation
+   4.3 Real-Time Emotion & Sentiment Detection
+   4.4 Burnout Risk & Study Pace Calibration
+5. 3D Companion Avatars & VRM Models
+   5.1 What are VRM Models?
+   5.2 How Three.js & @pixiv/three-vrm Render the Characters
+   5.3 Animations, Emotions & Real-Time Speech Synthesis (TTS)
+6. Database Architecture & MongoDB Data Models
+7. Authentication & Security Flow
+8. Frequently Asked Questions (FAQ)
+
+================================================================================
+1. PROJECT OVERVIEW & CORE MISSION
+================================================================================
+The AI Academic Copilot is a full-stack web application designed to solve academic
+overwhelm, poor study scheduling, and student anxiety.
+
+It combines:
+  • Automated Course & Syllabus Parsing: Upload or paste raw syllabi and get an
+    instantly structured topic hierarchy with exam importance ratings.
+  • Intelligent Study Plan Generation: Personalized schedules calculated against
+    real daily study capacity, focus intervals, and deadlines.
+  • Interactive 3D AI Companions: Live, responsive 3D characters (Mira, Ren, Hana,
+    Aoi) that speak with custom voices, express emotions, and offer encouragement.
+  • Dynamic Workload & Rescue Planning: Real-time recalculation if a student falls
+    behind or faces impending exams.
+
+================================================================================
+2. COMPLETE TECH STACK & LIBRARY BREAKDOWN
+================================================================================
+
+A. FRONTEND LAYER:
+  • React 18 (SPA): Modern component-based user interface.
+  • Vite 6: Next-generation ultra-fast frontend build tool and dev server.
+  • React Router DOM (v6): Client-side single-page routing, layout guards, and
+    protected routes.
+  • Tailwind CSS & Tailwind Animate: Utility-first styling with sleek dark-mode aesthetics.
+  • Radix UI Primitives: Accessible UI components (Dialog, Tabs, Progress, Select,
+    Accordion, Tooltip).
+  • Lucide React: Modern iconography across all dashboards and buttons.
+  • Canvas Confetti: Gamification effects on study session and goal completion.
+  • Recharts: Visual progress charts, workload distribution, and study hour trends.
+
+B. 3D GRAPHICS & AVATAR LAYER:
+  • Three.js (v0.171): WebGL 3D graphics rendering engine in the browser canvas.
+  • @pixiv/three-vrm (v3.5.5): Official library for loading, rigging, animating,
+    and rendering standard humanoid VRM 3D avatars.
+  • Web Speech Synthesis API: Native browser speech engine providing distinct male
+    and female voices with custom pitch and rate modulation.
+
+C. BACKEND LAYER:
+  • Node.js (v18+): Asynchronous server-side JavaScript runtime.
+  • Express.js (v4.21): High-performance RESTful API server.
+  • Mongoose (v8.8): Object Document Mapper (ODM) connecting Node.js to MongoDB.
+  • JSON Web Token (jsonwebtoken): Stateless secure authentication tokens.
+  • BcryptJS: Industry-standard salted password hashing.
+  • Dotenv: Local environment configuration loader (.env.local / .env).
+  • Concurrently: Tool to run backend and frontend simultaneously with 'npm run dev:all'.
+
+D. DATABASE:
+  • MongoDB (Local Community Server / Compass): NoSQL document database running
+    on port 27017, storing all persistent data in the 'ai_academic_copilot' DB.
+
+================================================================================
+3. THE AI ENGINE — MODEL, API, & INTELLIGENT FALLBACKS
+================================================================================
+
+A. PRIMARY AI MODEL:
+  • Provider: Mistral AI (https://mistral.ai)
+  • Model: 'mistral-large-latest'
+  • API Endpoint: https://api.mistral.ai/v1/chat/completions
+  • Why Mistral Large?
+    - State-of-the-art multilingual and academic reasoning capabilities.
+    - Strict adherence to JSON Output formatting ('response_format: { type: "json_object" }').
+    - Highly cost-effective and low latency compared to traditional models.
+
+B. MULTI-PROVIDER AI FAILOVER SYSTEM:
+  The backend server (server/routes/ai.js) features an intelligent 4-tier fallback:
+    1. Tier 1: Mistral AI ('mistral-large-latest') via MISTRAL_API_KEY.
+    2. Tier 2: OpenAI ('gpt-4o-mini') via OPENAI_API_KEY (if configured).
+    3. Tier 3: Google Gemini ('gemini-1.5-flash') via GEMINI_API_KEY (if configured).
+    4. Tier 4: Offline Rule-Based Heuristic Engine (works with NO API key or internet).
+
+C. PROMPT ENGINEERING & SYSTEM PERSONA:
+  For companion conversations, the AI is prompted with strict emotional bounds:
+    - Persona: Warm, empathetic, pragmatic mentor. NOT a therapist.
+    - Response length: 1–3 concise sentences focusing on the single next concrete step.
+    - JSON Format:
+      {
+        "message": "Spoken text reply",
+        "emotion": "empathetic | reassuring | excited | celebrating | calm | encouraging",
+        "animation": "gentle_nod | reassuring_tilt | subtle_nod | celebrate | look_thoughtful"
+      }
+
+================================================================================
+4. HOW AI ANALYZES ACADEMIC DATA
+================================================================================
+
+4.1 SYLLABUS & COURSE EXTRACTION:
+  When a user uploads a PDF syllabus or pastes course text:
+  1. The frontend extracts raw text or passes the document content to POST /api/ai/extract-course.
+  2. The AI is fed a specialised 'Curriculum Architect' system prompt.
+  3. The AI filters out administrative boilerplate (office hours, attendance rules, ISBNs).
+  4. The AI segments the syllabus into sequential Units / Modules.
+  5. The AI identifies individual granular topics, assesses theoretical depth, and assigns:
+     - Exam Importance: 'high' (core algorithms/theorems), 'medium' (standard methods), 'low' (overviews).
+     - Estimated Time: 45–90 minutes per topic.
+  6. The structured topic tree is saved to MongoDB under 'courses' and 'topics' collections.
+
+4.2 STUDY PLAN & SCHEDULE GENERATION:
+  When generating a personalized Study Plan:
+  1. Input Metrics: Target exam date, daily available study hours (e.g. 4h/day), focus duration
+     (e.g. 45 min), topics remaining, and off-days.
+  2. Spacing Algorithm: AI distributes high-importance topics into early revision cycles and
+     places practice/review sessions right before deadlines (Spaced Repetition & Active Recall).
+  3. Chunking: Long study blocks are segmented into distinct sessions (PlanSession) to prevent
+     cognitive fatigue.
+
+4.3 REAL-TIME EMOTION & SENTIMENT DETECTION:
+  When a student chats with their companion (e.g. "I'm scared I will fail my exam tomorrow"):
+  1. The user text and student profile context (current GPA, target GPA, study history) are sent
+     to the LLM.
+  2. The model analyzes emotional valence: detects anxiety, procrastination, burnout, or milestone victory.
+  3. The model returns both the supportive answer and matching emotional tags ('reassuring', 'empathetic', 'celebrating').
+  4. The 3D avatar visually reacts: tilting its head, nodding gently, or cheering while reading out the reply.
+
+4.4 BURNOUT RISK & STUDY PACE CALIBRATION:
+  During onboarding and study sessions:
+  • The system tracks predicted duration vs. actual minutes spent per session.
+  • A dynamic calibration ratio adjusts upcoming session durations automatically.
+  • If a student repeatedly overruns study blocks, burnout risk level increases from 'low' to 'medium/high',
+    triggering the AI companion to recommend recovery breaks and workload restructuring.
+
+================================================================================
+5. 3D COMPANION AVATARS & VRM MODELS
+================================================================================
+
+5.1 WHAT ARE VRM MODELS?
+  VRM is an open-standard 3D file format based on glTF 2.0 designed specifically for
+  humanoid 3D avatars. It includes 3D meshes, textures, bone rigging (skeleton), physics
+  colliders (hair/clothing sway), and facial blend shapes (expressions/mouth shapes).
+
+  The project includes 4 pre-configured 3D characters in /public/AvatarModels/:
+    • Mira (Female / Girl / Warm, steady mentor)       → Model: AvatarModels/Girl/4790635951276610274.vrm
+    • Ren  (Male / Boy / Structured strategist)        → Model: AvatarModels/Boy/1107255136407203461.vrm
+    • Hana (Female / Girl / High-energy cheerleader)   → Model: AvatarModels/Girl/4976500629603652360.vrm
+    • Aoi  (Female / Girl / Gentle, mindful listener)  → Model: AvatarModels/Girl/5244609761843871363.vrm
+
+5.2 HOW THREE.JS & @PIXIV/THREE-VRM WORK TOGETHER:
+  1. Canvas Initialization: Three.js creates a WebGLRenderer, PerspectiveCamera, and ambient/directional lights.
+  2. VRM Loading: GLTFLoader equipped with VRMLoaderPlugin parses the .vrm file into a live 3D Scene Graph.
+  3. Bone Animation & Rigging: The IdleController script runs a continuous requestAnimationFrame loop,
+     applying natural micro-movements:
+     - Spine and neck breathing oscillations.
+     - Natural head tracking following mouse movement.
+     - Randomized eye blinking (blink blend shapes triggered every 3–6 seconds).
+  4. Camera Controls: OrbitControls or subtle auto-centering keep the companion framed perfectly.
+
+5.3 REAL-TIME SPEECH & LIP SYNC:
+  • Speech Synthesis: Uses window.speechSynthesis to generate audible voices corresponding to
+    the companion's persona (custom male/female pitch and rate).
+  • Viseme Lip-Sync: While speech is active, the avatar's mouth blend shapes ('aa', 'ih', 'ou', 'ee', 'oh')
+    animate in sync with speech cadence.
+
+================================================================================
+6. DATABASE ARCHITECTURE & MONGODB DATA MODELS
+================================================================================
+
+The application stores data across 8 Mongoose collections inside the 'ai_academic_copilot' database:
+
+1. users:
+   Stores user credentials and profile basics (email, bcrypt password, full_name, created_date).
+
+2. studentprofiles:
+   Stores academic calibration baseline (display_name, daily_available_hours, focus_duration_minutes,
+   learning_style, companion, motivation_style, calibration_complete, estimate_accuracy).
+
+3. courses:
+   Stores registered subjects and courses (course_code, name, term, color, target_grade).
+
+4. topics:
+   Stores extracted syllabus topics linked to a course (course_id, title, importance, estimated_minutes).
+
+5. academictasks:
+   Stores assignments, homework, and exams (title, course_id, type, due_date, weight_percentage, priority, status).
+
+6. studyplans:
+   Stores high-level AI-generated revision plans (course_id, title, target_date, status, total_sessions).
+
+7. plansessions:
+   Stores individual calendar study blocks (plan_id, topic_id, day, duration_minutes, actual_minutes, status).
+
+8. companionmessages:
+   Stores historical chat logs between student and AI companion (role, content, emotion, created_date).
+
+================================================================================
+7. AUTHENTICATION & SECURITY FLOW
+================================================================================
+  1. Registration / Login:
+     - Passwords are encrypted using bcryptjs with 10 salt rounds before storage.
+     - A signed JSON Web Token (JWT) containing { id, email } is returned with a 30-day expiry.
+  2. Frontend Storage:
+     - Token is stored securely in localStorage as 'token'.
+  3. API Request Authorization:
+     - Every REST request via 'apiClient.js' attaches the 'Authorization: Bearer <token>' header.
+  4. Backend Middleware:
+     - 'authMiddleware' verifies the JWT using the secret key and attaches 'req.user' to request objects.
+
+================================================================================
+8. FREQUENTLY ASKED QUESTIONS (FAQ)
+================================================================================
+
+Q1: What happens if MongoDB is not running?
+A: The backend server includes an automatic In-Memory Store fallback. The app will continue
+   functioning in RAM for that session, but data resets when the server restarts. Starting MongoDB
+   (net start MongoDB) ensures all data persists permanently.
+
+Q2: Can I use OpenAI or Gemini instead of Mistral?
+A: Yes! Simply add OPENAI_API_KEY or GEMINI_API_KEY into your .env.local file. The server's
+   built-in multi-provider fallback will detect and use them automatically.
+
+Q3: Can I run this offline without any internet connection?
+A: Yes! The system contains built-in heuristic parsers and companion fallback engines that
+   generate study plans and answer companion chats even with zero internet connectivity.
+
+Q4: How do I change the 3D companion character?
+A: Navigate to Settings (http://localhost:5173/settings) and click any of the 4 character cards
+   (Mira, Ren, Hana, or Aoi). The 3D model and corresponding voice persona update immediately.
+
+Q5: How do I view my database records visually?
+A: Open MongoDB Compass → Connect to 'mongodb://127.0.0.1:27017' → Open the 'ai_academic_copilot'
+   database to view, query, and edit all 8 collections in real time.
+
+================================================================================
+                            END OF EXPLAIN GUIDE
+================================================================================
